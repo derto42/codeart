@@ -21,8 +21,6 @@ To run this project, you'll need to have Python installed on your system. Follow
     pip install -r requirements.txt
     ```
 
-4. (Optional) Download `sample-icon` to get started quickly.
-
 ## Usage
 
 1. Run the script:
