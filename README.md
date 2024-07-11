@@ -28,18 +28,21 @@ To run this project, you'll need to have Python installed on your system. Follow
     python codeart.py
     ```
 
-2. When prompted, enter the number of brightness levels and press Enter.
+2. When prompted, define the box size (1-200), with 200 being a more dense configuration (more boxes).
 
-3. Select a video by clicking the "Select video" button.
+3. Enter the number of brightness levels and press Enter.
 
-4. Choose icons for each brightness level by clicking the buttons labeled 1, 2, 3, 4, etc.
+4. Select a video by clicking the "Select video" button.
 
-5. Use the brightness level sliders to fine-tune the brightness levels for each icon.
+5. Choose icons for each brightness level by clicking the buttons labeled 1, 2, 3, 4, etc.
 
-6. Press the "Preview" button to get a sample frame of what the processed video will look like.
+6. Use the brightness level sliders to fine-tune the brightness levels for each icon.
 
-7. Press the "Start" button to begin processing the entire video.
+7. Press the "Preview" button to get a sample frame of what the processed video will look like.
 
-## Notes
+8. Press the "Start" button to begin processing the entire video.
 
-- The `sample-icon` directory is optional and is provided to help you get started quickly.
+### Notes
+
+- When creating your own icons, any dimension will work, and any transparency will turn to black.
+- When clicking "Start," it may seem like the script isn't working, but it just takes some time if the configuration is complex, so please stay patient.
