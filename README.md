@@ -28,10 +28,10 @@ To run this project, you'll need to have Python installed on your system. Follow
     python codeart.py
     ```
 
-2. When prompted, define the box size (1-200), with 200 being a more dense configuration (more boxes).
+2. When prompted, enter the number of brightness levels and press Enter.
 
-3. Enter the number of brightness levels and press Enter.
-
+3. Define the box size (1-200), with 200 being a more dense configuration (more boxes). 70 is the default
+ 
 4. Select a video by clicking the "Select video" button.
 
 5. Choose icons for each brightness level by clicking the buttons labeled 1, 2, 3, 4, etc.
