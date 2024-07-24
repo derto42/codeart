@@ -8,6 +8,7 @@ from moviepy.editor import ImageSequenceClip
 class Application:
     def __init__(self, window, num_levels):
         self.window = window
+        self.window.geometry("450x500")  # Width x Height
         self.video_file = StringVar()
         self.icon_files = [StringVar() for _ in range(num_levels)]
         self.icon_previews = [Label(window) for _ in range(num_levels)]
@@ -49,13 +50,15 @@ class Application:
         self.icon_frame = Frame(self.scrollable_frame)
         self.icon_frame.pack()
 
+        # Setting up grid wrapping for icons
+        icons_per_row = 5
         for i in range(num_levels):
             level_frame = Frame(self.icon_frame)
             button = Button(level_frame, text=f"Icon {i + 1}", command=lambda i=i: self.select_icon(i))
             button.pack(side="top")
             self.icon_previews[i] = Label(level_frame)
             self.icon_previews[i].pack(side="bottom")
-            level_frame.pack(side="left")
+            level_frame.grid(row=i // icons_per_row, column=i % icons_per_row, padx=5, pady=5)
 
         for i in range(num_levels):
             slider_frame = Frame(self.scrollable_frame)
