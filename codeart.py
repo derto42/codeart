@@ -1,7 +1,7 @@
 import cv2
 import numpy as np
-from tkinter import filedialog
-from tkinter import Tk, Label, Button, StringVar, Toplevel, Frame, Scale, HORIZONTAL
+from tkinter import filedialog, messagebox
+from tkinter import Tk, Label, Button, StringVar, Toplevel, Frame, Scale, HORIZONTAL, Canvas, Scrollbar, VERTICAL
 from PIL import Image, ImageTk
 from moviepy.editor import ImageSequenceClip
 
@@ -10,91 +10,145 @@ class Application:
         self.window = window
         self.video_file = StringVar()
         self.icon_files = [StringVar() for _ in range(num_levels)]
-        self.icon_previews = [Label(window) for _ in range(num_levels)]  # Create label widgets for icon previews
+        self.icon_previews = [Label(window) for _ in range(num_levels)]
         self.brightness_levels = [(i * (256 // num_levels)) for i in range(num_levels)]
-        self.brightness_scales = [0] * num_levels  # This line is new
-        self.grid_size = Scale(window, from_=1, to=200, orient=HORIZONTAL, length=400)
-        self.grid_size.set(70)  # set initial value
+
+        # Adding a scrollbar
+        self.canvas = Canvas(window)
+        self.scrollbar = Scrollbar(window, command=self.canvas.yview)
+        self.scrollable_frame = Frame(self.canvas)
+
+        self.scrollable_frame.bind(
+            "<Configure>",
+            lambda e: self.canvas.configure(
+                scrollregion=self.canvas.bbox("all")
+            )
+        )
+
+        self.canvas.create_window((0, 0), window=self.scrollable_frame, anchor="nw")
+        self.canvas.configure(yscrollcommand=self.scrollbar.set)
+
+        self.grid_size = Scale(self.scrollable_frame, from_=1, to=200, orient=HORIZONTAL, length=400)
+        self.grid_size.set(70)
+        self.grid_size.bind("<ButtonRelease-1>", lambda event: self.attempt_preview_update())
         self.grid_size.pack()
 
         self.preview_window = Toplevel(self.window)
-        self.preview_window.protocol('WM_DELETE_WINDOW', self.hide_preview)  # override 'x' button functionality
-        self.preview_window.withdraw()  # Hide the window until we have something to preview
+        self.preview_window.protocol('WM_DELETE_WINDOW', self.hide_preview)
+        self.preview_window.withdraw()
+        self.preview_window.resizable(False, False)
         self.preview_label = Label(self.preview_window)
         self.preview_label.pack()
 
-        self.select_video_button = Button(window, text="Select video", command=self.select_video)
+        self.select_video_button = Button(self.scrollable_frame, text="Select video", command=self.select_video)
         self.select_video_button.pack()
 
-        self.icon_frame = Frame(window)  # Create a frame to hold the icon buttons and previews
+        self.video_label = Label(self.scrollable_frame, text="")
+        self.video_label.pack()
+
+        self.icon_frame = Frame(self.scrollable_frame)
         self.icon_frame.pack()
 
         for i in range(num_levels):
-            level_frame = Frame(self.icon_frame)  # Create a frame for each level
-            button = Button(level_frame, text=str(i + 1), command=lambda i=i: self.select_icon(i))  # Button just shows the level number
-            button.pack(side="top")  # Pack button at the top of level_frame
-            self.icon_previews[i] = Label(level_frame)  # Set the parent of the label to level_frame
-            self.icon_previews[i].pack(side="bottom")  # Pack the label widget for icon preview under the button
-            level_frame.pack(side="left")  # Pack each level frame side by side
+            level_frame = Frame(self.icon_frame)
+            button = Button(level_frame, text=f"Icon {i + 1}", command=lambda i=i: self.select_icon(i))
+            button.pack(side="top")
+            self.icon_previews[i] = Label(level_frame)
+            self.icon_previews[i].pack(side="bottom")
+            level_frame.pack(side="left")
 
         for i in range(num_levels):
-            slider_frame = Frame(window)  # Create a frame to hold the slider and its associated number
-            level_label = Label(slider_frame, text=str(i + 1))  # Label to display the level number
-            level_label.pack(side="left")  # Pack the label to the left inside the slider_frame
+            slider_frame = Frame(self.scrollable_frame)
+            level_label = Label(slider_frame, text=str(i + 1))
+            level_label.pack(side="left")
 
-            scale = Scale(slider_frame, from_=0, to=255, orient=HORIZONTAL, command=self.update_brightness_level(i), length=400)
-            scale.set(self.brightness_levels[i])  # Set the initial value
-            scale.pack(side="right")  # Pack the slider to the right inside the slider_frame
+            scale = Scale(slider_frame, from_=0, to=255, orient=HORIZONTAL, length=400)
+            scale.set(self.brightness_levels[i])
+            scale.bind("<ButtonRelease-1>", lambda event, i=i, scale=scale: self.update_brightness_level(i, scale.get()))
+            scale.pack(side="right")
 
-            self.brightness_scales[i] = scale
+            slider_frame.pack()
 
-            slider_frame.pack()  # Pack the entire slider_frame into the main window
-
-        self.preview_button = Button(window, text="Preview", command=self.preview_frame)
+        self.preview_button = Button(self.scrollable_frame, text="Preview", command=self.show_preview)
         self.preview_button.pack()
 
-        self.start_button = Button(window, text="Start", command=self.start_processing)
+        self.start_button = Button(self.scrollable_frame, text="Start", command=self.start_processing)
         self.start_button.pack()
+
+        self.canvas.pack(side="left", fill="both", expand=True)
+        self.scrollbar.pack(side="right", fill="y")
 
     def hide_preview(self):
         self.preview_window.withdraw()
 
+    def show_preview(self):
+        if not self.video_file.get():
+            messagebox.showerror("Error", "Please select a video file.")
+            return
+        if not all(icon.get() for icon in self.icon_files):
+            messagebox.showerror("Error", "Please select all icon files.")
+            return
+        self.preview_window.deiconify()
+        self.preview_window.geometry("")
+        self.attempt_preview_update()
+
     def select_video(self):
-        self.video_file.set(filedialog.askopenfilename())
+        filename = filedialog.askopenfilename()
+        if filename:
+            self.video_file.set(filename)
+            self.video_label.config(text=filename.split("/")[-1])
+            self.attempt_preview_update()
 
     def select_icon(self, level):
-        self.icon_files[level].set(filedialog.askopenfilename())
-        # Update icon preview
-        icon_preview = Image.open(self.icon_files[level].get())
-        icon_preview.thumbnail((25, 25), Image.LANCZOS)  # Use Image.LANCZOS instead of Image.ANTIALIAS
-        tk_icon_preview = ImageTk.PhotoImage(icon_preview)
-        self.icon_previews[level].config(image=tk_icon_preview)
-        self.icon_previews[level].image = tk_icon_preview
+        filename = filedialog.askopenfilename()
+        if filename:
+            self.icon_files[level].set(filename)
+            icon_preview = Image.open(filename)
+            icon_preview.thumbnail((25, 25), Image.LANCZOS)
+            tk_icon_preview = ImageTk.PhotoImage(icon_preview)
+            self.icon_previews[level].config(image=tk_icon_preview)
+            self.icon_previews[level].image = tk_icon_preview
+            self.attempt_preview_update()
 
-    def update_brightness_level(self, level):
-        def update(val):
-            self.brightness_levels[level] = int(val)
-        return update
+    def update_brightness_level(self, level, value):
+        self.brightness_levels[level] = int(value)
+        self.attempt_preview_update()
+
+    def attempt_preview_update(self):
+        if self.preview_window.state() == 'normal':  # Check if the preview window is visible
+            if self.video_file.get() and all(icon.get() for icon in self.icon_files):
+                self.preview_frame()
 
     def preview_frame(self):
+        if not self.video_file.get():
+            return  # No video file selected
         vid = cv2.VideoCapture(self.video_file.get())
+        if not vid.isOpened():
+            return  # Failed to open video
         total_frames = int(vid.get(cv2.CAP_PROP_FRAME_COUNT))
-        vid.set(cv2.CAP_PROP_POS_FRAMES, total_frames // 2)  # set position to the middle frame
+        vid.set(cv2.CAP_PROP_POS_FRAMES, total_frames // 2)  # Set position to the middle frame
 
         ret, frame = vid.read()
+        vid.release()
         if ret:
-            frame = process_frame_from_array(frame, [icon_file.get() for icon_file in self.icon_files], self.brightness_levels, self.grid_size.get())
+            frame = process_frame_from_array(frame, [icon.get() for icon in self.icon_files if icon.get()], self.brightness_levels, self.grid_size.get())
             preview = Image.fromarray(frame)
-            preview.thumbnail((800, 800), Image.LANCZOS)  # Use Image.LANCZOS instead of Image.ANTIALIAS
+            preview.thumbnail((800, 800), Image.LANCZOS)
             tkimage = ImageTk.PhotoImage(preview)
 
             self.preview_label.config(image=tkimage)
             self.preview_label.image = tkimage
-            self.preview_window.deiconify()  # Show the window
+            self.preview_window.geometry(f"{tkimage.width()}x{tkimage.height()}")
 
         vid.release()
 
     def start_processing(self):
+        if not self.video_file.get():
+            messagebox.showerror("Error", "Please select a video file.")
+            return
+        if not all(icon.get() for icon in self.icon_files):
+            messagebox.showerror("Error", "Please select all icon files.")
+            return
         save_path = filedialog.asksaveasfilename(defaultextension=".mp4", filetypes=[("MP4 files", "*.mp4"), ("All files", "*.*")])
         if save_path:
             frame_list = process_video(self.video_file.get(), [icon_file.get() for icon_file in self.icon_files], self.brightness_levels, self.grid_size.get())
@@ -157,6 +211,7 @@ def process_frame_from_array(frame, icon_paths, brightness_levels, grid_width):
 
     return frame
 
+
 def process_video(file_path, icon_paths, brightness_levels, grid_width):
     vid = cv2.VideoCapture(file_path)
     width = int(vid.get(cv2.CAP_PROP_FRAME_WIDTH))
@@ -190,6 +245,7 @@ def process_video(file_path, icon_paths, brightness_levels, grid_width):
 
     vid.release()
     return frame_list
+
 
 def main():
     num_levels = int(input("Enter number of brightness levels: "))
